@@ -1,0 +1,53 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Frontend build
+dist/
+build/
+
+# Local database / temporary files
+*.sqlite
+*.sqlite3
+
+# Secrets / credentials
+*.pem
+*.key
+
+# Jupyter
+.ipynb_checkpoints/
