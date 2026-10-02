@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 from dotenv import load_dotenv
 import os
 
@@ -22,3 +22,23 @@ engine = create_engine(DATABASE_URL)
 with engine.connect() as connection:
     result = connection.execute(text("SELECT 1"))
     print("MySQL Connected:", result.scalar())
+
+
+
+#Database schema inspect 
+inspector = inspect(engine)
+
+tables = inspector.get_table_names()
+print("Tables:", tables)
+
+for table in tables:
+    print(f"\n--- {table} ---")
+
+    columns = inspector.get_columns(table)
+
+    for column in columns:
+        print(
+            column["name"],
+            "|",
+            column["type"]
+              )
