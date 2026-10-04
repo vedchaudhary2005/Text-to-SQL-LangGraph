@@ -9,10 +9,9 @@ class State(TypedDict):
     validation_error: str
     query_result: str
     analysis: str
-    intent: str
-    complexity: str
+    
 
-
+# Schema Node 
 def schema_node(state: State):
 
     print("\nSchema Node chal raha hai...")
@@ -23,7 +22,7 @@ def schema_node(state: State):
         "schema": schema
     }
 
-
+#sql node
 def sql_node(state: State):
     print("\nSQL Node chal raha hai...")
 
@@ -36,7 +35,7 @@ def sql_node(state: State):
         "sql_query": sql
     }
 
-
+# Validate Node  
 def validate_node(state: State):
     print("\nValidate Node chal raha hai...")
 
@@ -56,7 +55,7 @@ def validate_node(state: State):
         }
 
 
-
+# Validation Router
 def validation_router(state: State):
     print("\nValidation Router chal raha hai...")
 
@@ -65,7 +64,7 @@ def validation_router(state: State):
 
     return "sql"
 
-
+# Execute Node
 def execute_node(state: State):
     print("\nExecute Node chal raha hai...")
 
@@ -77,7 +76,7 @@ def execute_node(state: State):
         "query_result": str(result)
     }
 
-
+# Analyze Node
 def analyze_node(state: State):
     print("\nAnalyze Node chal raha hai...")
 
@@ -90,6 +89,9 @@ You are an AI Data Analyst.
 
 User Question:
 {question}
+
+DATABASE SCHEMA:
+{schema}
 
 Database Result:
 {result}
