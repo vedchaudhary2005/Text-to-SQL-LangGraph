@@ -132,6 +132,8 @@ graph_builder.add_node("analyze", analyze_node)
 graph_builder.add_edge(START, "schema")
 graph_builder.add_edge("schema", "sql")
 graph_builder.add_edge("sql", "validate")
+
+# Conditional Edge
 graph_builder.add_conditional_edges(
     "validate",
     validation_router,
@@ -142,6 +144,8 @@ graph_builder.add_conditional_edges(
 )
 graph_builder.add_edge("execute","analyze")
 graph_builder.add_edge("analyze", END)
+
+
 # Compile
 graph = graph_builder.compile()
 
