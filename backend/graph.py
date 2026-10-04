@@ -14,6 +14,7 @@ class State(TypedDict):
     query_result: str
     query_results: list[str]
     analysis: str
+    retry_count: int
     
 
 # Schema Node 
@@ -268,6 +269,22 @@ def multiple_validate_node(state: State):
         "validation_errors": validation_errors
     }
 
+def multiple_validation_router(state: State):
+
+    print("\nMultiple Validation Router chal raha hai...")
+
+    validation_errors = state["validation_errors"]
+
+    has_error = any(
+        error != ""
+        for error in validation_errors
+    )
+
+    if has_error:
+        return "fix"
+
+    return "execute"
+
 
 def multiple_execute_node(state: State):
     print("\nMultiple Execute Node chal raha hai...")
@@ -289,6 +306,109 @@ def multiple_execute_node(state: State):
     return {
         "query_results": query_results
     }
+
+def fix_sql_node(state: State):
+
+    print("\nFix SQL Node chal raha hai...")
+
+    question = state["question"]
+    schema = state["schema"]
+    sql_queries = state["sql_queries"]
+    query_results = state["query_results"]
+    validation_errors = state.get("validation_errors", [])
+
+    retry_count = state.get("retry_count", 0)
+
+    fixed_sql_queries = []
+
+    for i, sql in enumerate(sql_queries):
+
+        execution_error = ""
+
+        if i < len(query_results):
+            execution_error = query_results[i]
+
+        validation_error = ""
+
+        if i < len(validation_errors):
+            validation_error = validation_errors[i]
+
+    # Agar validation aur execution dono successful hain
+        if validation_error == "" and (
+        execution_error == ""
+        or not execution_error.startswith("SQL execution failed:")
+        ):
+            fixed_sql_queries.append(sql)
+            continue
+
+        print(f"\nSQL {i + 1} mein error mila. Fix kar rahe hain...")
+
+        prompt = f"""
+You are an expert MySQL SQL debugger.
+
+USER QUESTION:
+{question}
+
+DATABASE SCHEMA:
+{schema}
+
+FAILED SQL:
+{sql}
+
+VALIDATION ERROR:
+{validation_error}
+
+MYSQL ERROR:
+{execution_error}
+
+Fix this SQL query.
+
+Rules:
+1. Return ONLY the corrected SQL query.
+2. Generate only SELECT queries.
+3. Use only tables and columns from the schema.
+4. Do not invent tables or columns.
+5. Use valid MySQL 8 syntax.
+6. Sales/revenue = quantity * unit_price.
+7. Exclude cancelled orders from sales calculations.
+8. Do not use reserved MySQL keywords as aliases.
+9. Do not explain anything.
+"""
+
+        response = llm.invoke(prompt)
+
+        fixed_sql = clean_sql(response.content)
+
+        fixed_sql_queries.append(fixed_sql)
+
+    return {
+        "sql_queries": fixed_sql_queries,
+        "retry_count": retry_count + 1
+    }
+
+
+def fix_router(state: State):
+
+    retry_count = state.get("retry_count", 0)
+
+    query_results = state["query_results"]
+
+    has_error = any(
+        result.startswith("SQL execution failed:")
+        for result in query_results
+    )
+
+    # Agar koi error nahi hai
+    if not has_error:
+        return "analyze"
+
+    # Maximum 2 attempts
+    if retry_count >= 2:
+        print("\nMaximum SQL retry reached.")
+        return "analyze"
+
+    return "fix"
+
 
 # Multiple Analyze Node
 def multiple_analyze_node(state: State):
@@ -454,6 +574,7 @@ graph_builder.add_node("query_planner", query_planner_node)
 graph_builder.add_node("multiple_sql", multiple_sql_node)
 graph_builder.add_node("multiple_validate", multiple_validate_node)
 graph_builder.add_node("multiple_execute",multiple_execute_node)
+graph_builder.add_node("fix_sql", fix_sql_node)
 graph_builder.add_node("multiple_analyze",multiple_analyze_node)
 graph_builder.add_node("sql", sql_node)
 graph_builder.add_node("validate", validate_node)
@@ -486,8 +607,26 @@ graph_builder.add_conditional_edges(
     }
 )
 graph_builder.add_edge("multiple_sql", "multiple_validate")
-graph_builder.add_edge("multiple_validate","multiple_execute")
-graph_builder.add_edge("multiple_execute","multiple_analyze")
+graph_builder.add_conditional_edges(
+    "multiple_validate",
+    multiple_validation_router,
+    {
+        "fix": "fix_sql",
+        "execute": "multiple_execute"
+    }
+)
+graph_builder.add_conditional_edges(
+    "multiple_execute",
+    fix_router,
+    {
+        "fix": "fix_sql",
+        "analyze": "multiple_analyze"
+    }
+)
+graph_builder.add_edge(
+    "fix_sql",
+    "multiple_validate"
+)
 graph_builder.add_edge("execute","analyze")
 graph_builder.add_edge("analyze", END)
 graph_builder.add_edge("multiple_analyze",END)
@@ -507,7 +646,8 @@ result = graph.invoke({
     "sql_query": "",
     "validation_error": "",
     "query_result": "",
-    "analysis": ""
+    "analysis": "",
+    "retry_count": 0
     
 })
 
