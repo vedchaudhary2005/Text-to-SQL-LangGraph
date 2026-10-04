@@ -1,27 +1,40 @@
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import URL
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 import os
 
 load_dotenv()
-MYSQL_HOST = os.getenv("MYSQL_HOST")
-MYSQL_PORT = os.getenv("MYSQL_PORT")
-MYSQL_USER = os.getenv("MYSQL_USER")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
-MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
+engine = None
 
-DATABASE_URL = (
-    f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}"
-    f"@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
-)
 
-engine = create_engine(DATABASE_URL)
 
-with engine.connect() as connection:
-    print("MySQL Connected!")
+def connect_database(host, port, username, password, database):
+    global engine
+
+    database_url = URL.create(
+        drivername="mysql+pymysql",
+        username=username,
+        password=password,
+        host=host,
+        port=int(port),
+        database=database
+    )
+
+    new_engine = create_engine(database_url)
+
+    with new_engine.connect():
+        print("New MySQL Database Connected!")
+
+    engine = new_engine
+
+    return True
 
 
 def get_database_schema():
+    if engine is None:
+        raise ValueError("Database is not connected.")
+
     inspector = inspect(engine)
 
     tables = inspector.get_table_names()
@@ -109,15 +122,13 @@ def validate_sql(sql_query):
     return True
 
 
-
 def execute_sql(sql_query):
+    if engine is None:
+        raise ValueError("Database is not connected.")
 
     with engine.connect() as connection:
-
         result = connection.execute(text(sql_query))
-
         rows = result.fetchall()
-
         return rows
 
 
