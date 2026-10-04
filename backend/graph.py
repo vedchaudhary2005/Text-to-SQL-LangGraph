@@ -113,6 +113,16 @@ complexity: <complexity>
         "complexity": complexity
     }
 
+# Planner Router
+def planner_router(state: State):
+
+    print("\nPlanner Router chal raha hai...")
+
+    if state["complexity"] == "simple":
+        return "simple"
+
+    return "complex"
+
 #sql node
 def sql_node(state: State):
     print("\nSQL Node chal raha hai...")
