@@ -5,6 +5,8 @@ from main import generate_sql, validate_sql, execute_sql, llm, get_database_sche
 class State(TypedDict):
     question:str
     schema: str
+    intent: str
+    complexity: str
     sql_query: str
     validation_error: str
     query_result: str
@@ -20,6 +22,95 @@ def schema_node(state: State):
 
     return {
         "schema": schema
+    }
+
+
+# Planner Node
+def planner_node(state: State):
+
+    print("\nPlanner Node chal raha hai...")
+
+    question = state["question"]
+
+    prompt = f"""
+You are an AI Data Analyst Planner.
+
+Your job is to understand the user's question
+and classify it before SQL generation.
+
+USER QUESTION:
+{question}
+
+Decide:
+
+1. intent
+2. complexity
+
+Possible intents:
+
+- total_sales
+- monthly_sales
+- yearly_sales
+- profit
+- sales_decline
+- product_analysis
+- customer_analysis
+- region_analysis
+- other
+
+Complexity:
+
+- simple
+- complex
+
+Use "simple" when one SQL query should normally
+be enough to answer the question.
+
+Use "complex" when the question requires
+multiple analyses or multiple SQL queries.
+
+For example:
+
+Question:
+"2026 mein total sales kitni hui?"
+
+Output:
+intent: total_sales
+complexity: simple
+
+Question:
+"March ke baad sales kyu gir gayi?"
+
+Output:
+intent: sales_decline
+complexity: complex
+
+Return ONLY in this exact format:
+
+intent: <intent>
+complexity: <complexity>
+"""
+
+    response = llm.invoke(prompt)
+
+    content = response.content.strip()
+
+    lines = content.splitlines()
+
+    intent = ""
+    complexity = ""
+
+    for line in lines:
+
+        if line.lower().startswith("intent:"):
+            intent = line.split(":", 1)[1].strip()
+
+        elif line.lower().startswith("complexity:"):
+            complexity = line.split(":", 1)[1].strip()
+
+    return {
+        "intent": intent,
+        "complexity": complexity
     }
 
 #sql node
