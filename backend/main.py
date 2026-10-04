@@ -80,20 +80,17 @@ RULES:
 
 # SQL VALIDATOR
 def validate_sql(sql_query):
-
     sql = sql_query.strip().lower()
 
-    # Query must start with SELECT
-    if not sql.startswith("select"):
+    allowed_start = (
+        sql.startswith("select")
+        or sql.startswith("with")
+    )
 
-        raise ValueError(
-            "Only SELECT queries are allowed."
-        )
+    if not allowed_start:
+        raise ValueError("Only SELECT queries are allowed.")
 
-
-    # Dangerous SQL keywords
     forbidden_keywords = [
-
         "insert",
         "update",
         "delete",
@@ -101,19 +98,13 @@ def validate_sql(sql_query):
         "alter",
         "truncate",
         "create"
-
     ]
 
-
-    # Check forbidden keywords
     for keyword in forbidden_keywords:
-
         if keyword in sql:
-
             raise ValueError(
                 f"Unsafe SQL detected: {keyword}"
             )
-
 
     return True
 

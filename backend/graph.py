@@ -10,6 +10,7 @@ class State(TypedDict):
     sql_query: str
     sql_queries: list[str]
     validation_error: str
+    validation_errors: list[str]
     query_result: str
     query_results: list[str]
     analysis: str
@@ -175,8 +176,22 @@ Return ONLY the analysis tasks.
         "sql_queries": tasks
     }
 
-# Multiple SQL Generator Node
 
+
+
+def clean_sql(sql_query):
+    sql_query = sql_query.strip()
+
+    if sql_query.startswith("```sql"):
+        sql_query = sql_query[6:]
+
+    if sql_query.endswith("```"):
+        sql_query = sql_query[:-3]
+
+    return sql_query.strip()
+
+
+# Multiple SQL Generator Node
 def multiple_sql_node(state: State):
 
     print("\nMultiple SQL Node chal raha hai...")
@@ -220,10 +235,107 @@ Rules:
 
         sql = response.content.strip()
 
+        sql = clean_sql(sql)
+
         sql_queries.append(sql)
 
     return {
         "sql_queries": sql_queries
+    }
+
+
+# Multiple SQL Validation Node
+def multiple_validate_node(state: State):
+
+    print("\nMultiple Validate Node chal raha hai...")
+
+    sql_queries = state["sql_queries"]
+
+    validation_errors = []
+
+    for sql in sql_queries:
+
+        try:
+            validate_sql(sql)
+
+            validation_errors.append("")
+
+        except ValueError as e:
+
+            validation_errors.append(str(e))
+
+    return {
+        "validation_errors": validation_errors
+    }
+
+
+def multiple_execute_node(state: State):
+    print("\nMultiple Execute Node chal raha hai...")
+
+    sql_queries = state["sql_queries"]
+
+    query_results = []
+
+    for sql in sql_queries:
+        try:
+            result = execute_sql(sql)
+            query_results.append(str(result))
+
+        except Exception as e:
+            query_results.append(
+                f"SQL execution failed: {str(e)}"
+            )
+
+    return {
+        "query_results": query_results
+    }
+
+# Multiple Analyze Node
+def multiple_analyze_node(state: State):
+    print("\nMultiple Analyze Node chal raha hai...")
+
+    question = state["question"]
+    schema = state["schema"]
+    query_results = state["query_results"]
+
+    combined_results = ""
+
+    for index, result in enumerate(query_results, start=1):
+        combined_results += f"\n\nAnalysis {index} Result:\n{result}"
+
+    prompt = f"""
+You are an AI Data Analyst.
+
+USER QUESTION:
+{question}
+
+DATABASE SCHEMA:
+{schema}
+
+DATABASE ANALYSIS RESULTS:
+{combined_results}
+
+Your job is to analyze all the database results together
+and give a clear business answer to the user's question.
+
+Rules:
+
+1. Use only the provided database results.
+2. Never invent data.
+3. Compare the different analysis results when useful.
+4. If the user asks "why", explain the possible reasons
+   only when they are supported by the database results.
+5. Do not generate SQL.
+6. Clearly mention important numbers and trends.
+7. Keep the answer simple and understandable.
+8. If the available data is not enough to determine the exact
+   reason, clearly say that.
+"""
+
+    response = llm.invoke(prompt)
+
+    return {
+        "analysis": response.content
     }
 
 # Planner Router
@@ -340,10 +452,15 @@ graph_builder.add_node("schema",schema_node)
 graph_builder.add_node("planner", planner_node)
 graph_builder.add_node("query_planner", query_planner_node)
 graph_builder.add_node("multiple_sql", multiple_sql_node)
+graph_builder.add_node("multiple_validate", multiple_validate_node)
+graph_builder.add_node("multiple_execute",multiple_execute_node)
+graph_builder.add_node("multiple_analyze",multiple_analyze_node)
 graph_builder.add_node("sql", sql_node)
 graph_builder.add_node("validate", validate_node)
 graph_builder.add_node("execute", execute_node)
 graph_builder.add_node("analyze", analyze_node)
+
+
 
 
 graph_builder.add_edge(START, "schema")
@@ -368,8 +485,12 @@ graph_builder.add_conditional_edges(
         "sql": "sql"
     }
 )
+graph_builder.add_edge("multiple_sql", "multiple_validate")
+graph_builder.add_edge("multiple_validate","multiple_execute")
+graph_builder.add_edge("multiple_execute","multiple_analyze")
 graph_builder.add_edge("execute","analyze")
 graph_builder.add_edge("analyze", END)
+graph_builder.add_edge("multiple_analyze",END)
 
 
 # Compile
