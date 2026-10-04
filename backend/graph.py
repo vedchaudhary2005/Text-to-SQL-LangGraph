@@ -175,6 +175,57 @@ Return ONLY the analysis tasks.
         "sql_queries": tasks
     }
 
+# Multiple SQL Generator Node
+
+def multiple_sql_node(state: State):
+
+    print("\nMultiple SQL Node chal raha hai...")
+
+    question = state["question"]
+    schema = state["schema"]
+    tasks = state["sql_queries"]
+
+    sql_queries = []
+
+    for task in tasks:
+
+        prompt = f"""
+You are an AI Data Analyst SQL Generator.
+
+USER QUESTION:
+{question}
+
+DATABASE SCHEMA:
+{schema}
+
+ANALYSIS TASK:
+{task}
+
+Generate one valid MySQL SELECT query
+to perform this analysis.
+
+Rules:
+
+1. Generate only SELECT query.
+2. Use only tables and columns from the schema.
+3. Do not invent tables or columns.
+4. Use MySQL syntax.
+5. For sales/revenue, use:
+   quantity * unit_price
+6. Exclude cancelled orders from sales calculations.
+7. Return ONLY the SQL query.
+"""
+
+        response = llm.invoke(prompt)
+
+        sql = response.content.strip()
+
+        sql_queries.append(sql)
+
+    return {
+        "sql_queries": sql_queries
+    }
+
 # Planner Router
 def planner_router(state: State):
 
@@ -287,6 +338,7 @@ graph_builder = StateGraph(State)
 # Add node
 graph_builder.add_node("schema",schema_node)
 graph_builder.add_node("planner", planner_node)
+graph_builder.add_node("query_planner", query_planner_node)
 graph_builder.add_node("sql", sql_node)
 graph_builder.add_node("validate", validate_node)
 graph_builder.add_node("execute", execute_node)
@@ -294,14 +346,13 @@ graph_builder.add_node("analyze", analyze_node)
 
 
 graph_builder.add_edge(START, "schema")
-graph_builder.add_edge(START, "schema")
 graph_builder.add_edge("schema", "planner")
 graph_builder.add_conditional_edges(
     "planner",
     planner_router,
     {
         "simple": "sql",
-        "complex": "sql"
+        "complex": "query_planner"
     }
 )
 graph_builder.add_edge("sql", "validate")
