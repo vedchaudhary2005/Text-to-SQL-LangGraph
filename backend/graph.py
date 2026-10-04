@@ -339,6 +339,7 @@ graph_builder = StateGraph(State)
 graph_builder.add_node("schema",schema_node)
 graph_builder.add_node("planner", planner_node)
 graph_builder.add_node("query_planner", query_planner_node)
+graph_builder.add_node("multiple_sql", multiple_sql_node)
 graph_builder.add_node("sql", sql_node)
 graph_builder.add_node("validate", validate_node)
 graph_builder.add_node("execute", execute_node)
@@ -355,6 +356,7 @@ graph_builder.add_conditional_edges(
         "complex": "query_planner"
     }
 )
+graph_builder.add_edge("query_planner", "multiple_sql")
 graph_builder.add_edge("sql", "validate")
 
 # Conditional Edge
