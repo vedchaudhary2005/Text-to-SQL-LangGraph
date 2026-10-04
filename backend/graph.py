@@ -638,19 +638,19 @@ graph = graph_builder.compile()
 
 
 
-result = graph.invoke({
-    "question": " 2026 Sales March ke baad kyu gir gayi?",
-    "schema": "",
-    "intent": "",
-    "complexity": "",
-    "sql_query": "",
-    "validation_error": "",
-    "query_result": "",
-    "analysis": "",
-    "retry_count": 0
+# result = graph.invoke({
+#     "question": " 2026 Sales March ke baad kyu gir gayi?",
+#     "schema": "",
+#     "intent": "",
+#     "complexity": "",
+#     "sql_query": "",
+#     "validation_error": "",
+#     "query_result": "",
+#     "analysis": "",
+#     "retry_count": 0
     
-})
+# })
 
 
-print("\nFinal State:")
-print(result)
+# print("\nFinal State:")
+# print(result)
