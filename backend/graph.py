@@ -8,8 +8,10 @@ class State(TypedDict):
     intent: str
     complexity: str
     sql_query: str
+    sql_queries: list[str]
     validation_error: str
     query_result: str
+    query_results: list[str]
     analysis: str
     
 
@@ -111,6 +113,66 @@ complexity: <complexity>
     return {
         "intent": intent,
         "complexity": complexity
+    }
+
+# Query Planner Node 
+def query_planner_node(state: State):
+
+    print("\nQuery Planner Node chal raha hai...")
+
+    question = state["question"]
+    schema = state["schema"]
+    intent = state["intent"]
+
+    prompt = f"""
+You are an AI Data Analyst Query Planner.
+
+USER QUESTION:
+{question}
+
+INTENT:
+{intent}
+
+DATABASE SCHEMA:
+{schema}
+
+The user has asked a complex business question.
+
+Your job is to decide what SQL analyses are required
+to answer the question properly.
+
+For example, if the user asks:
+
+"2026 mein March ke baad sales kyu gir gayi?"
+
+You may need:
+1. Monthly sales
+2. Product/category sales
+3. Region-wise sales
+4. Number of orders
+
+Rules:
+
+1. Use only tables and columns from the provided schema.
+2. Do not invent tables or columns.
+3. Generate ONLY analysis tasks.
+4. Do not generate SQL yet.
+5. Return one task per line.
+6. Keep tasks short and clear.
+
+Return ONLY the analysis tasks.
+"""
+
+    response = llm.invoke(prompt)
+
+    tasks = [
+        line.strip()
+        for line in response.content.splitlines()
+        if line.strip()
+    ]
+
+    return {
+        "sql_queries": tasks
     }
 
 # Planner Router
@@ -224,6 +286,7 @@ graph_builder = StateGraph(State)
 
 # Add node
 graph_builder.add_node("schema",schema_node)
+graph_builder.add_node("planner", planner_node)
 graph_builder.add_node("sql", sql_node)
 graph_builder.add_node("validate", validate_node)
 graph_builder.add_node("execute", execute_node)
@@ -231,7 +294,16 @@ graph_builder.add_node("analyze", analyze_node)
 
 
 graph_builder.add_edge(START, "schema")
-graph_builder.add_edge("schema", "sql")
+graph_builder.add_edge(START, "schema")
+graph_builder.add_edge("schema", "planner")
+graph_builder.add_conditional_edges(
+    "planner",
+    planner_router,
+    {
+        "simple": "sql",
+        "complex": "sql"
+    }
+)
 graph_builder.add_edge("sql", "validate")
 
 # Conditional Edge
@@ -256,6 +328,8 @@ graph = graph_builder.compile()
 result = graph.invoke({
     "question": " 2026 Sales March ke baad kyu gir gayi?",
     "schema": "",
+    "intent": "",
+    "complexity": "",
     "sql_query": "",
     "validation_error": "",
     "query_result": "",
