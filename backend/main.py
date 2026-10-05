@@ -3,9 +3,12 @@ from sqlalchemy.engine import URL
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from pymongo import MongoClient
+from fastapi import FastAPI
+
 import os
 
 load_dotenv()
+app = FastAPI()
 engine = None
 
 MONGODB_URI = os.getenv("MONGODB_URI")
