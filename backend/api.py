@@ -1,15 +1,22 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
+import uuid
 from graph import graph
-from main import connect_database
-
+from main import connect_database, save_conversation, conversations_collection
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ChatRequest(BaseModel):
     question: str
+    conversation_id: str | None = None
 
 
 class DatabaseRequest(BaseModel):
@@ -53,8 +60,9 @@ def connect_db(request: DatabaseRequest):
 
 @app.post("/chat")
 def chat(request: ChatRequest):
-
     try:
+        conversation_id = request.conversation_id or str(uuid.uuid4())
+
         result = graph.invoke({
             "question": request.question,
             "schema": "",
@@ -70,7 +78,14 @@ def chat(request: ChatRequest):
             "retry_count": 0
         })
 
+        save_conversation(
+            conversation_id,
+            result["question"],
+            result["analysis"]
+        )
+
         return {
+            "conversation_id": conversation_id,
             "question": result["question"],
             "intent": result["intent"],
             "complexity": result["complexity"],
@@ -81,8 +96,41 @@ def chat(request: ChatRequest):
             "query_results": result["query_results"]
         }
 
+   
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Something went wrong: {str(e)}"
         )
+
+
+
+@app.get("/conversations/{conversation_id}")
+def get_conversation(conversation_id: str):
+    conversation = conversations_collection.find_one(
+        {"conversation_id": conversation_id},
+        {"_id": 0}
+    )
+
+    if conversation is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found"
+        )
+
+    return conversation
+
+@app.get("/conversations")
+def get_conversations():
+    conversations = conversations_collection.find(
+        {},
+        {
+            "_id": 0,
+            "conversation_id": 1,
+            "title":1,
+            "messages": 1
+        }
+    ).sort("_id", -1)
+
+    return list(conversations)

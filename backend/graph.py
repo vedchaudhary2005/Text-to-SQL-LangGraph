@@ -503,12 +503,64 @@ def validate_node(state: State):
 
 # Validation Router
 def validation_router(state: State):
+
     print("\nValidation Router chal raha hai...")
 
     if state["validation_error"] == "":
         return "execute"
 
-    return "sql"
+    print("SQL validation failed:", state["validation_error"])
+
+    return "fix"
+
+def fix_single_sql_node(state: State):
+
+    print("\nFix Single SQL Node chal raha hai...")
+
+    question = state["question"]
+    schema = state["schema"]
+    sql = state["sql_query"]
+    error = state["validation_error"]
+
+    prompt = f"""
+You are an expert MySQL SQL generator.
+
+USER QUESTION:
+{question}
+
+DATABASE SCHEMA:
+{schema}
+
+GENERATED SQL:
+{sql}
+
+VALIDATION ERROR:
+{error}
+
+Generate a valid MySQL SELECT query that answers
+the user's question.
+
+Rules:
+
+1. Return ONLY the SQL query.
+2. The response MUST start with SELECT or WITH.
+3. Do not explain anything.
+4. Do not apologize.
+5. Do not refuse.
+6. Use only tables and columns from the schema.
+7. Do not generate INSERT, UPDATE, DELETE, DROP,
+   ALTER, CREATE, or TRUNCATE.
+8. Use valid MySQL syntax.
+"""
+
+    response = llm.invoke(prompt)
+
+    fixed_sql = clean_sql(response.content)
+
+    return {
+        "sql_query": fixed_sql,
+        "validation_error": ""
+    }
 
 # Execute Node
 def execute_node(state: State):
@@ -579,6 +631,11 @@ graph_builder.add_node("multiple_analyze",multiple_analyze_node)
 graph_builder.add_node("sql", sql_node)
 graph_builder.add_node("validate", validate_node)
 graph_builder.add_node("execute", execute_node)
+graph_builder.add_node(
+    "fix_single_sql",
+    fix_single_sql_node
+)
+
 graph_builder.add_node("analyze", analyze_node)
 
 
@@ -603,8 +660,12 @@ graph_builder.add_conditional_edges(
     validation_router,
     {
         "execute": "execute",
-        "sql": "sql"
+        "fix": "fix_single_sql"
     }
+)
+graph_builder.add_edge(
+    "fix_single_sql",
+    "validate"
 )
 graph_builder.add_edge("multiple_sql", "multiple_validate")
 graph_builder.add_conditional_edges(

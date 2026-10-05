@@ -2,12 +2,22 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
+from pymongo import MongoClient
 import os
 
 load_dotenv()
 engine = None
 
+MONGODB_URI = os.getenv("MONGODB_URI")
+mongo_client = MongoClient(MONGODB_URI)
+mongo_db = mongo_client["ai_data_analyst"]
+conversations_collection = mongo_db["conversations"]
 
+try:
+    mongo_client.admin.command("ping")
+    print("MongoDB Connected!")
+except Exception as e:
+    print("MongoDB Connection Failed:", e)
 
 def connect_database(host, port, username, password, database):
     global engine
@@ -131,6 +141,50 @@ def execute_sql(sql_query):
         rows = result.fetchall()
         return rows
 
+def save_conversation(conversation_id, question, answer):
+
+    existing = conversations_collection.find_one(
+        {"conversation_id": conversation_id}
+    )
+
+    if existing is None:
+        title = question[:50]
+
+        conversations_collection.insert_one({
+            "conversation_id": conversation_id,
+            "title": title,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": question
+                },
+                {
+                    "role": "assistant",
+                    "content": answer
+                }
+            ]
+        })
+
+    else:
+        conversations_collection.update_one(
+            {"conversation_id": conversation_id},
+            {
+                "$push": {
+                    "messages": {
+                        "$each": [
+                            {
+                                "role": "user",
+                                "content": question
+                            },
+                            {
+                                "role": "assistant",
+                                "content": answer
+                            }
+                        ]
+                    }
+                }
+            }
+        )
 
 
 
